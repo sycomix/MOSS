@@ -88,26 +88,26 @@ def parse_text(text):
         if "```" in line:
             count += 1
             items = line.split('`')
+            lines[i] = (
+                f'<pre><code class="language-{items[-1]}">'
+                if count % 2 == 1
+                else '<br></code></pre>'
+            )
+        elif i > 0:
             if count % 2 == 1:
-                lines[i] = f'<pre><code class="language-{items[-1]}">'
-            else:
-                lines[i] = f'<br></code></pre>'
-        else:
-            if i > 0:
-                if count % 2 == 1:
-                    line = line.replace("`", "\`")
-                    line = line.replace("<", "&lt;")
-                    line = line.replace(">", "&gt;")
-                    line = line.replace(" ", "&nbsp;")
-                    line = line.replace("*", "&ast;")
-                    line = line.replace("_", "&lowbar;")
-                    line = line.replace("-", "&#45;")
-                    line = line.replace(".", "&#46;")
-                    line = line.replace("!", "&#33;")
-                    line = line.replace("(", "&#40;")
-                    line = line.replace(")", "&#41;")
-                    line = line.replace("$", "&#36;")
-                lines[i] = "<br>"+line
+                line = line.replace("`", "\`")
+                line = line.replace("<", "&lt;")
+                line = line.replace(">", "&gt;")
+                line = line.replace(" ", "&nbsp;")
+                line = line.replace("*", "&ast;")
+                line = line.replace("_", "&lowbar;")
+                line = line.replace("-", "&#45;")
+                line = line.replace(".", "&#46;")
+                line = line.replace("!", "&#33;")
+                line = line.replace("(", "&#40;")
+                line = line.replace(")", "&#41;")
+                line = line.replace("$", "&#36;")
+            lines[i] = f"<br>{line}"
     text = "".join(lines)
     return text
 
@@ -116,9 +116,9 @@ def predict(input, chatbot, max_length, top_p, temperature, history):
     query = parse_text(input)
     chatbot.append((query, ""))
     prompt = meta_instruction
-    for i, (old_query, response) in enumerate(history):
-        prompt += '<|Human|>: ' + old_query + '<eoh>'+response
-    prompt += '<|Human|>: ' + query + '<eoh>'
+    for old_query, response in history:
+        prompt += f'<|Human|>: {old_query}<eoh>{response}'
+    prompt += f'<|Human|>: {query}<eoh>'
     inputs = tokenizer(prompt, return_tensors="pt")
     with torch.no_grad():
         outputs = model.generate(

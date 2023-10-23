@@ -37,9 +37,7 @@ class MossAttention(Module):
         jt.float16
 
         self.out_proj = nn.Linear(self.embed_dim, self.embed_dim, bias=False)
-        self.rotary_dim = None
-        if config.rotary_dim is not None:
-            self.rotary_dim = config.rotary_dim
+        self.rotary_dim = config.rotary_dim if config.rotary_dim is not None else None
 
     def _split_heads(self, x, n_head, dim_head, mp_num):
         reshaped = x.reshape(x.shape[:-1] + (n_head // mp_num, dim_head))
@@ -158,11 +156,7 @@ class MossAttention(Module):
             key = jt.cat((past_key, key), dim=-2)
             value = jt.cat((past_value, value), dim=-2)
 
-        if use_cache is True:
-            present = (key, value)
-        else:
-            present = None
-
+        present = (key, value) if use_cache is True else None
         # compute self-attention: V x Softmax(QK^T)
         attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
 
@@ -170,9 +164,7 @@ class MossAttention(Module):
         attn_output = self.out_proj(attn_output)
         attn_output = self.resid_dropout(attn_output)
 
-        outputs = (attn_output, present)
-
-        return outputs  # a, present
+        return attn_output, present
 
 
 class MossMLP(Module):
@@ -227,12 +219,11 @@ class MossBlock(Module):
         feed_forward_hidden_states = self.mlp(hidden_states)
         hidden_states = attn_output + feed_forward_hidden_states + residual
 
-        if use_cache:
-            outputs = (hidden_states,) + outputs
-        else:
-            outputs = (hidden_states,) + outputs[1:]
-
-        return outputs  # hidden_states, present
+        return (
+            (hidden_states,) + outputs
+            if use_cache
+            else (hidden_states,) + outputs[1:]
+        )
 
 
 class MossModel(Module):

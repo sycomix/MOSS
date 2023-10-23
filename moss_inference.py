@@ -7,7 +7,7 @@ from typing import Union, List, Tuple, Optional, Dict
 import torch
 try:
     from transformers import MossForCausalLM, MossTokenizer, MossConfig
-except (ImportError, ModuleNotFoundError):
+except ImportError:
     from models.modeling_moss import MossForCausalLM
     from models.tokenization_moss import MossTokenizer
     from models.configuration_moss import MossConfig
@@ -113,16 +113,13 @@ class Inference:
         # Tie the model's weights
         raw_model.tie_weights()
 
-        # Load the checkpoint and dispatch the model to the specified devices
-        model = load_checkpoint_and_dispatch(
+        return load_checkpoint_and_dispatch(
             raw_model,
             raw_model_dir,
             device_map="auto" if not device_map else device_map,
             no_split_module_classes=["MossBlock"],
-            dtype=torch.float16
+            dtype=torch.float16,
         )
-
-        return model
 
     def preprocess(self, raw_text: str) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -174,9 +171,7 @@ class Inference:
 
         preds = self.tokenizer.batch_decode(outputs)
 
-        res = [self.postprocess_remove_prefix(pred) for pred in preds]
-
-        return res
+        return [self.postprocess_remove_prefix(pred) for pred in preds]
 
     def postprocess_remove_prefix(self, preds_i: str) -> str:
         """
@@ -236,9 +231,9 @@ class Inference:
         generations, start_time = torch.ones(self.bsz, 1, dtype=torch.int64), time.time()
 
         past_key_values = None
-        for i in range(int(max_iterations)):
+        for i in range(max_iterations):
             logits, past_key_values = self.infer_(input_ids if i == 0 else new_generated_id, attention_mask, past_key_values)
-            
+
             if i == 0: 
                 logits = logits.gather(1, last_token_indices.view(self.bsz, 1, 1).repeat(1, 1, self.vocab_size)).squeeze(1)
             else: 
@@ -261,7 +256,7 @@ class Inference:
             probabilities = torch.softmax(filtered_logits, dim=-1)
 
             cur_len = i
-            if cur_len > int(regulation_start):
+            if cur_len > regulation_start:
                 for i in self.moss_stopwords:
                     probabilities[:, i] = probabilities[:, i] * pow(length_penalty, cur_len - regulation_start)
 
@@ -278,14 +273,14 @@ class Inference:
             queue_for_moss_stopwords = torch.cat([queue_for_moss_stopwords[:, 1:], new_generated_id], dim=1)
 
             moss_stop |= (queue_for_moss_stopwords == moss_stopwords).all(1)
-            
+
             all_shall_stop |= moss_stop
-            
+
             if all_shall_stop.all().item(): 
                 break
             elif time.time() - start_time > max_time: 
                 break
-        
+
         return input_ids
     
     def top_k_top_p_filtering(self, logits, top_k, top_p, filter_value=-float("Inf"), min_tokens_to_keep=1, ):

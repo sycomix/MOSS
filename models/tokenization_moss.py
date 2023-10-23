@@ -236,17 +236,10 @@ class MossTokenizer(PreTrainedTokenizer):
         return word
 
     def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):
-        if self.add_bos_token:
-            bos_token_ids = [self.bos_token_id]
-        else:
-            bos_token_ids = []
-
+        bos_token_ids = [self.bos_token_id] if self.add_bos_token else []
         output = bos_token_ids + token_ids_0
 
-        if token_ids_1 is None:
-            return output
-
-        return output + bos_token_ids + token_ids_1
+        return output if token_ids_1 is None else output + bos_token_ids + token_ids_1
 
     def _tokenize(self, text):
         """Tokenize a string."""
@@ -255,7 +248,7 @@ class MossTokenizer(PreTrainedTokenizer):
             token = "".join(
                 self.byte_encoder[b] for b in token.encode("utf-8")
             )  # Maps all our bytes to unicode strings, avoiding control tokens of the BPE (spaces in our case)
-            bpe_tokens.extend(bpe_token for bpe_token in self.bpe(token).split(" "))
+            bpe_tokens.extend(iter(self.bpe(token).split(" ")))
         return bpe_tokens
 
     def _convert_token_to_id(self, token):
@@ -269,18 +262,23 @@ class MossTokenizer(PreTrainedTokenizer):
     def convert_tokens_to_string(self, tokens):
         """Converts a sequence of tokens (string) in a single string."""
         text = "".join(tokens)
-        text = bytearray([self.byte_decoder[c] for c in text]).decode("utf-8", errors=self.errors)
-        return text
+        return bytearray([self.byte_decoder[c] for c in text]).decode(
+            "utf-8", errors=self.errors
+        )
 
     def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
         if not os.path.isdir(save_directory):
             logger.error(f"Vocabulary path ({save_directory}) should be a directory")
             return
         vocab_file = os.path.join(
-            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["vocab_file"]
+            save_directory,
+            (f"{filename_prefix}-" if filename_prefix else "")
+            + VOCAB_FILES_NAMES["vocab_file"],
         )
         merge_file = os.path.join(
-            save_directory, (filename_prefix + "-" if filename_prefix else "") + VOCAB_FILES_NAMES["merges_file"]
+            save_directory,
+            (f"{filename_prefix}-" if filename_prefix else "")
+            + VOCAB_FILES_NAMES["merges_file"],
         )
 
         with open(vocab_file, "w", encoding="utf-8") as f:
@@ -304,7 +302,7 @@ class MossTokenizer(PreTrainedTokenizer):
     def prepare_for_tokenization(self, text, is_split_into_words=False, **kwargs):
         add_prefix_space = kwargs.pop("add_prefix_space", self.add_prefix_space)
         if is_split_into_words or add_prefix_space:
-            text = " " + text
+            text = f" {text}"
         return (text, kwargs)
 
     def decode(
@@ -374,7 +372,4 @@ class MossTokenizer(PreTrainedTokenizer):
             pos for pos in [find_re(completion, terminal, start_pos) for terminal in terminals] if pos != -1
         ]
 
-        if len(terminals_pos) > 0:
-            return completion[: min(terminals_pos)]
-        else:
-            return completion
+        return completion[: min(terminals_pos)] if terminals_pos else completion

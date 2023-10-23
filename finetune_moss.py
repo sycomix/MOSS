@@ -180,18 +180,26 @@ def train(args):
     model = AutoModelForCausalLM.from_pretrained(args.model_name_or_path, trust_remote_code=True, use_cache=False)
 
     model.transformer.gradient_checkpointing = True
-    assert model.transformer.gradient_checkpointing is True
+    assert model.transformer.gradient_checkpointing
 
     # Optimizer
     # Split weights in two groups, one with weight decay and the other not.
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
         {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if all(nd not in n for nd in no_decay)
+            ],
             "weight_decay": args.weight_decay,
         },
         {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
             "weight_decay": 0.0,
         },
     ]
@@ -257,8 +265,8 @@ def train(args):
                 val_acc, val_loss = val_metric.get_metric()
 
                 if accelerator.is_local_main_process:
-                    writer.add_scalar(f'val_loss', val_loss, global_step=global_step)
-                    writer.add_scalar(f'val_acc', val_acc, global_step=global_step)
+                    writer.add_scalar('val_loss', val_loss, global_step=global_step)
+                    writer.add_scalar('val_acc', val_acc, global_step=global_step)
                     accelerator.print(f"Epoch: {epoch}, Step: {batch_cnt}, Val loss: {val_loss}, Val acc: {val_acc}")
 
                 model.train()           

@@ -30,10 +30,7 @@ logger.setLevel("ERROR")
 warnings.filterwarnings("ignore")
 
 # set gpu
-if args.gpu:
-    jt.flags.use_cuda = 1
-else:
-    jt.flags.use_cuda = 0
+jt.flags.use_cuda = 1 if args.gpu else 0
 jt.flags.amp_level = 3
 
 config = AutoConfig.from_pretrained(args.model_name, trust_remote_code=True)

@@ -79,7 +79,7 @@ def get_head_mask(
     ):
     if head_mask is not None:
         head_mask = _convert_head_mask_to_5d(head_mask, num_hidden_layers, 'float16')
-        if is_attention_chunked is True:
+        if is_attention_chunked:
             head_mask = head_mask.unsqueeze(-1)
     else:
         head_mask = [None] * num_hidden_layers

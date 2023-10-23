@@ -34,7 +34,7 @@ st.set_page_config(
      initial_sidebar_state="expanded",
  )
 
-st.title(':robot_face: {}'.format(args.model_name.split('/')[-1]))
+st.title(f":robot_face: {args.model_name.split('/')[-1]}")
 st.sidebar.header("Parameters")
 temperature = st.sidebar.slider("Temerature", min_value=0.0, max_value=1.0, value=0.7)
 max_length = st.sidebar.slider('Maximum response length', min_value=256, max_value=1024, value=512)
@@ -81,7 +81,7 @@ data_load_state = st.text('Loading model...')
 load_start_time = time.time()
 tokenizer, model = load_model()
 load_elapsed_time = time.time() - load_start_time
-data_load_state.text('Loading model...done! ({}s)'.format(round(load_elapsed_time, 2)))
+data_load_state.text(f'Loading model...done! ({round(load_elapsed_time, 2)}s)')
 
 tokenizer.pad_token_id = tokenizer.eos_token_id
 stopping_criteria_list = StoppingCriteriaList([
@@ -91,36 +91,38 @@ stopping_criteria_list = StoppingCriteriaList([
 
 def generate_answer():
    
-   user_message = st.session_state.input_text
-   formatted_text = "{}\n<|Human|>: {}<eoh>\n<|MOSS|>:".format(st.session_state.prefix, user_message)
-   # st.info(formatted_text)
-   with st.spinner('MOSS is responding...'):
-      inference_start_time = time.time()
-      input_ids = tokenizer(formatted_text, return_tensors="pt").input_ids
-      input_ids = input_ids.cuda()
-      generated_ids = model.generate(
-         input_ids,
-         max_length=max_length+st.session_state.input_len,
-         temperature=temperature,
-         length_penalty=length_penalty,
-         max_time=max_time,
-         repetition_penalty=repetition_penalty,
-         stopping_criteria=stopping_criteria_list,
-      )
-      st.session_state.input_len = len(generated_ids[0])
-      # st.info(tokenizer.decode(generated_ids[0], skip_special_tokens=False))
-      result = tokenizer.decode(generated_ids[0][input_ids.shape[1]:], skip_special_tokens=True)
-      inference_elapsed_time = time.time() - inference_start_time
-   
-   st.session_state.history.append(
-      {"message": user_message, "is_user": True}
-   )
-   st.session_state.history.append(
-      {"message": result, "is_user": False, "time": inference_elapsed_time}
-   )
-   
-   st.session_state.prefix = "{}{}<eom>".format(formatted_text, result)
-   st.session_state.num_queries += 1
+    user_message = st.session_state.input_text
+    formatted_text = (
+        f"{st.session_state.prefix}\n<|Human|>: {user_message}<eoh>\n<|MOSS|>:"
+    )
+    # st.info(formatted_text)
+    with st.spinner('MOSS is responding...'):
+       inference_start_time = time.time()
+       input_ids = tokenizer(formatted_text, return_tensors="pt").input_ids
+       input_ids = input_ids.cuda()
+       generated_ids = model.generate(
+          input_ids,
+          max_length=max_length+st.session_state.input_len,
+          temperature=temperature,
+          length_penalty=length_penalty,
+          max_time=max_time,
+          repetition_penalty=repetition_penalty,
+          stopping_criteria=stopping_criteria_list,
+       )
+       st.session_state.input_len = len(generated_ids[0])
+       # st.info(tokenizer.decode(generated_ids[0], skip_special_tokens=False))
+       result = tokenizer.decode(generated_ids[0][input_ids.shape[1]:], skip_special_tokens=True)
+       inference_elapsed_time = time.time() - inference_start_time
+
+    st.session_state.history.append(
+       {"message": user_message, "is_user": True}
+    )
+    st.session_state.history.append(
+       {"message": result, "is_user": False, "time": inference_elapsed_time}
+    )
+
+    st.session_state.prefix = f"{formatted_text}{result}<eom>"
+    st.session_state.num_queries += 1
 
 
 def clear_history():
@@ -134,14 +136,14 @@ with st.form(key='input_form', clear_on_submit=True):
 
 
 if len(st.session_state.history) > 0:
-   with st.form(key='chat_history'):
-      for chat in st.session_state.history:
-         if chat["is_user"] is True:
-            st.markdown("**:red[User]**")
-         else:
-            st.markdown("**:blue[MOSS]**")
-         st.markdown(chat["message"])
-         if chat["is_user"] == False:
-            st.caption(":clock2: {}s".format(round(chat["time"], 2)))
-      st.info("Current total number of tokens: {}".format(st.session_state.input_len))
-      st.form_submit_button(label="Clear", help="Clear the dialogue history", on_click=clear_history)
+    with st.form(key='chat_history'):
+        for chat in st.session_state.history:
+            if chat["is_user"] is True:
+               st.markdown("**:red[User]**")
+            else:
+               st.markdown("**:blue[MOSS]**")
+            st.markdown(chat["message"])
+            if chat["is_user"] == False:
+                st.caption(f':clock2: {round(chat["time"], 2)}s')
+        st.info(f"Current total number of tokens: {st.session_state.input_len}")
+        st.form_submit_button(label="Clear", help="Clear the dialogue history", on_click=clear_history)

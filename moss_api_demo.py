@@ -76,12 +76,12 @@ async def create_item(request: Request):
     json_post_list = json.loads(json_post)
     query = json_post_list.get('prompt') # '<|Human|>: ' + query + '<eoh>'
     uid = json_post_list.get('uid', None)
-    if uid == None or not(uid in history_mp):
+    if uid is None or uid not in history_mp:
         uid = str(uuid.uuid4())
         history_mp[uid] = []
-    for i, (old_query, response) in enumerate(history_mp[uid]):
-        prompt += '<|Human|>: ' + old_query + '<eoh>'+response
-    prompt = '<|Human|>: ' + query + '<eoh>'
+    for old_query, response in history_mp[uid]:
+        prompt += f'<|Human|>: {old_query}<eoh>{response}'
+    prompt = f'<|Human|>: {query}<eoh>'
     max_length = json_post_list.get('max_length', 2048)
     top_p = json_post_list.get('top_p', 0.8)
     temperature = json_post_list.get('temperature', 0.7)
@@ -111,7 +111,7 @@ async def create_item(request: Request):
         "time": time,
         "uid": uid
     }
-    log = "[" + time + "] " + '", prompt:"' + prompt + '", response:"' + repr(response) + '"'
+    log = f'[{time}] ", prompt:"{prompt}", response:"{repr(response)}"'
     print(log)
     return answer
     

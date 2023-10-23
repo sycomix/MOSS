@@ -207,11 +207,7 @@ class MossAttention(nn.Module):
             key = torch.cat((past_key, key), dim=-2)
             value = torch.cat((past_value, value), dim=-2)
 
-        if use_cache is True:
-            present = (key, value)
-        else:
-            present = None
-
+        present = (key, value) if use_cache is True else None
         # compute self-attention: V x Softmax(QK^T)
         attn_output, attn_weights = self._attn(query, key, value, attention_mask, head_mask)
 
@@ -282,12 +278,11 @@ class MossBlock(nn.Module):
         feed_forward_hidden_states = self.mlp(hidden_states)
         hidden_states = attn_output + feed_forward_hidden_states + residual
 
-        if use_cache:
-            outputs = (hidden_states,) + outputs
-        else:
-            outputs = (hidden_states,) + outputs[1:]
-
-        return outputs  # hidden_states, present, (attentions)
+        return (
+            (hidden_states,) + outputs
+            if use_cache
+            else (hidden_states,) + outputs[1:]
+        )
 
 
 class MossPreTrainedModel(PreTrainedModel):
@@ -591,9 +586,9 @@ class MossForCausalLM(MossPreTrainedModel):
         if not hasattr(config, 'wbits'):
             config.wbits = 32
             config.groupsize = 128
-            
+
         if config.wbits not in [4, 8, 32]:
-            logger.warning(f'Specify `wbits` with 4, 8 or 32 to load the model. ')
+            logger.warning('Specify `wbits` with 4, 8 or 32 to load the model. ')
         if config.wbits in [4, 8]:
             def noop(*args, **kwargs):
                 pass
